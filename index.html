@@ -209,13 +209,51 @@ td{padding:11px 14px;vertical-align:middle}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.success{border-color:var(--low)}
 .toast.error{border-color:var(--high)}
+
+/* ── Import Modal ── */
+.imp-step{display:none}.imp-step.active{display:block}
+.imp-drop{border:2px dashed var(--border2);border-radius:6px;padding:28px;text-align:center;cursor:pointer;transition:all .15s;background:var(--surface);position:relative}
+.imp-drop:hover,.imp-drop.dragover{border-color:var(--gold);background:var(--gold-dim)}
+.imp-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.imp-drop-icon{font-size:28px;margin-bottom:8px}
+.imp-drop-label{font-size:13px;font-weight:600;color:var(--text2)}
+.imp-drop-hint{font-size:11px;color:var(--text3);margin-top:4px}
+.imp-drop.loaded{border-color:var(--low);background:var(--low-dim)}
+.imp-drop.loaded .imp-drop-label{color:var(--low)}
+.imp-steps-nav{display:flex;align-items:center;gap:6px;margin-bottom:20px}
+.imp-step-dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text3);flex-shrink:0;transition:all .2s}
+.imp-step-dot.active{border-color:var(--gold);background:var(--gold);color:#000}
+.imp-step-dot.done{border-color:var(--low);background:var(--low);color:#fff}
+.imp-step-line{flex:1;height:2px;background:var(--border2);transition:background .2s}
+.imp-step-line.done{background:var(--low)}
+.imp-review-section{margin-bottom:16px}
+.imp-review-title{font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.imp-review-title.green{color:var(--low)}
+.imp-review-title.orange{color:var(--med)}
+.imp-review-title.red{color:var(--high)}
+.imp-review-title.blue{color:var(--new-c)}
+.imp-item{font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.imp-item:last-child{border-bottom:none}
+.imp-item-name{font-weight:600;color:var(--text)}
+.imp-item-detail{color:var(--text3);font-size:11px;font-family:'DM Mono',monospace}
+.imp-badge{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.imp-badge.new{background:var(--new-dim);color:var(--new-c)}
+.imp-badge.updated{background:var(--low-dim);color:var(--low)}
+.imp-badge.flagged{background:var(--med-dim);color:var(--med)}
+.imp-badge.cancel{background:var(--high-dim);color:var(--high)}
+.imp-empty{font-size:12px;color:var(--text3);font-style:italic;padding:6px 0}
+.imp-scroll{max-height:220px;overflow-y:auto}
+.imp-confirm-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:4px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;font-size:12px}
+.imp-confirm-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--high);cursor:pointer}
+.imp-confirm-row label{cursor:pointer;color:var(--text);flex:1}
+.imp-confirm-row .imp-item-detail{margin-left:auto}
 </style>
 </head>
 <body>
 <header>
   <div class="header-brand"><div class="logo">Lumos FC</div><div class="page-subtitle">Member Check-in Tracker</div></div>
   <div class="header-right">
-    <label class="btn" style="cursor:pointer">Import CSV <input type="file" id="csvIn" accept=".csv" style="display:none"></label>
+    <button class="btn" id="importBtn">⬆ Monthly Import</button>
     <button class="btn" id="addBtn">+ Add member</button>
     <button class="btn btn-accent" id="expBtn">Export CSV</button>
     <button class="btn" id="settingsBtn" title="Calendar Settings">⚙ Calendar</button>
@@ -257,7 +295,7 @@ td{padding:11px 14px;vertical-align:middle}
       <th data-c="name">Member <span class="sa">↕</span></th>
       <th data-c="owner">Coach <span class="sa">↕</span></th>
       <th data-c="memberSince">Since <span class="sa">↕</span></th>
-      <th data-c="visits45" style="text-align:center">Visits (45d) <span class="sa">↕</span></th>
+      <th data-c="visits45" style="text-align:center">Visits (Last 45d) <span class="sa">↕</span></th>
       <th data-c="lastCheckin">Last check-in <span class="sa">↕</span></th>
       <th data-c="score">Risk <span class="sa">↕</span></th>
       <th data-c="tier">Tier <span class="sa">↕</span></th>
@@ -283,10 +321,69 @@ td{padding:11px 14px;vertical-align:middle}
     <div id="chw"></div>
     <div class="ma">
       <button class="btn" id="mci" style="display:none">✓ Mark checked in today</button>
+      <button class="btn" id="mdel" style="display:none;border-color:#d93025;color:#d93025" onmouseover="this.style.background='#d93025';this.style.color='#fff'" onmouseout="this.style.background='';this.style.color='#d93025'">Delete member</button>
       <div class="mar"><button class="btn" id="mcancel">Cancel</button><button class="btn btn-accent" id="msave">Save</button></div>
     </div>
   </div>
 </div>
+<!-- Import Modal -->
+<div class="settings-bg" id="importModal">
+  <div class="settings-panel" style="max-width:560px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 id="importTitle">Monthly Import</h2>
+      <button class="mc" id="importClose">×</button>
+    </div>
+
+    <!-- Step nav -->
+    <div class="imp-steps-nav">
+      <div class="imp-step-dot active" id="sdot1">1</div>
+      <div class="imp-step-line" id="sline1"></div>
+      <div class="imp-step-dot" id="sdot2">2</div>
+      <div class="imp-step-line" id="sline2"></div>
+      <div class="imp-step-dot" id="sdot3">3</div>
+    </div>
+
+    <!-- Step 1: Upload CSV1 roster -->
+    <div class="imp-step active" id="impStep1">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px"><strong style="color:var(--text)">Step 1 of 3 — Athlete List</strong><br>Upload the <code>Athlete-List</code> export. Must include <code>Name</code> and <code>Member Since</code> columns.</p>
+      <div class="imp-drop" id="drop1">
+        <input type="file" id="csv1In" accept=".csv">
+        <div class="imp-drop-icon">📋</div>
+        <div class="imp-drop-label" id="drop1Label">Drop Athlete-List CSV here or click to browse</div>
+        <div class="imp-drop-hint">Athlete-List export — Name, Member Since</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <button class="btn btn-accent" id="imp1Next" disabled>Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Upload CSV2 attendance -->
+    <div class="imp-step" id="impStep2">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px"><strong style="color:var(--text)">Step 2 of 3 — Generated (Attendance)</strong><br>Upload the <code>Generated</code> export. Must include <code>Full Name</code>, <code>Class Attendance</code>, <code>App Reservations</code>, and <code>Current Packages</code> columns.</p>
+      <div class="imp-drop" id="drop2">
+        <input type="file" id="csv2In" accept=".csv">
+        <div class="imp-drop-icon">📊</div>
+        <div class="imp-drop-label" id="drop2Label">Drop Generated CSV here or click to browse</div>
+        <div class="imp-drop-hint">Generated export — Full Name, Class Attendance, App Reservations, Current Packages</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px">
+        <button class="btn" id="imp2Back">← Back</button>
+        <button class="btn btn-accent" id="imp2Next" disabled>Review →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Review & confirm -->
+    <div class="imp-step" id="impStep3">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px"><strong style="color:var(--text)">Step 3 of 3 — Review changes</strong><br>Review what will change before committing. Check any deletions you want to confirm.</p>
+      <div id="impReview"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:8px">
+        <button class="btn" id="imp3Back">← Back</button>
+        <button class="btn btn-accent" id="imp3Commit">✓ Apply Import</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Settings Panel -->
 <div class="settings-bg" id="settingsPanel">
   <div class="settings-panel">
@@ -294,33 +391,16 @@ td{padding:11px 14px;vertical-align:middle}
       <h2>Calendar Settings</h2>
       <button class="mc" id="settingsClose">×</button>
     </div>
-    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">When ✓ Checked In is clicked, an all-day follow-up event is created 90 days out on the assigned coach's Google Calendar.</p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:14px">When ✓ Checked In is clicked, an all-day follow-up event is created on the signed-in coach's own Google Calendar. Each coach signs in with their @lumosfc.com account.</p>
 
-    <div id="gcalStatusBar" class="gcal-status pending"><span class="gcal-dot"></span><span id="gcalStatusText">Checking Google Calendar connection…</span></div>
+    <div id="gcalStatusBar" class="gcal-status disconnected"><span class="gcal-dot"></span><span id="gcalStatusText">Not signed in — click below to connect</span></div>
 
-    <div class="settings-section">
-      <div class="settings-section-title">Coach Calendar IDs</div>
-      <div class="cal-row">
-        <span class="coach-chip" style="background:var(--o-noah-bg);color:var(--o-noah)">Noah</span>
-        <input type="text" id="calNoah" placeholder="noah@lumosfc.com or calendar ID">
-      </div>
-      <div class="cal-row">
-        <span class="coach-chip" style="background:var(--o-jon-bg);color:var(--o-jon)">Jon</span>
-        <input type="text" id="calJon" placeholder="jon@lumosfc.com or calendar ID">
-      </div>
-      <div class="cal-row">
-        <span class="coach-chip" style="background:var(--o-brett-bg);color:var(--o-brett)">Brett</span>
-        <input type="text" id="calBrett" placeholder="brett@lumosfc.com or calendar ID">
-      </div>
-      <div class="cal-row">
-        <span class="coach-chip" style="background:var(--o-jojo-bg);color:var(--o-jojo)">JoJo</span>
-        <input type="text" id="calJojo" placeholder="jojo@lumosfc.com or calendar ID">
-      </div>
-      <div class="cal-row">
-        <span class="coach-chip" style="background:var(--surface2);color:var(--text3)">Fallback</span>
-        <input type="text" id="calFallback" value="info@lumosfc.com">
-      </div>
-      <div class="cal-hint">Use a Gmail address or the full calendar ID (found in Google Calendar → Settings → Calendar ID)</div>
+    <div style="margin:14px 0">
+      <button class="btn btn-accent" id="gcalSignIn" style="width:100%;justify-content:center;display:flex;align-items:center;gap:8px;padding:10px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Sign in with Google
+      </button>
+      <button class="btn" id="gcalSignOut" style="width:100%;margin-top:8px;display:none">Sign out</button>
     </div>
 
     <div class="settings-section">
@@ -329,6 +409,7 @@ td{padding:11px 14px;vertical-align:middle}
         <label>Days out</label>
         <input type="number" id="calDays" value="90" min="1" max="365" style="max-width:80px">
       </div>
+      <div class="cal-hint" style="margin-top:8px">Events are created on the signed-in coach's primary calendar.</div>
     </div>
 
     <div class="settings-footer">
@@ -396,7 +477,6 @@ let M=[
   {id:9,name:"Amanda Hartman",owner:"noah",pkg:"Group Class- Unlimited",memberSince:fD("04/29/2022"),visits45:w45(2.6),lastCheckin:null,history:[],notes:""},
   {id:10,name:"Anastasiia Semenets",owner:"jojo",pkg:"Group Class- Unlimited",memberSince:fD("11/01/2023"),visits45:w45(1.8),lastCheckin:null,history:[],notes:""},
   {id:11,name:"Andrea Scott",owner:"noah",pkg:"Nutrition and Group Class- Unlimited",memberSince:fD("07/05/2020"),visits45:w45(1.2),lastCheckin:null,history:[],notes:""},
-  {id:12,name:"Andrea Bergia",owner:"jojo",pkg:"Personal Training- 3X/Week",memberSince:fD("09/19/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:13,name:"Andy Pesant",owner:"brett",pkg:"Individual Program Design-5X/Week",memberSince:fD("07/05/2020"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:14,name:"Angelica Lomax",owner:"brett",pkg:"Group Class- Unlimited and Nutrition",memberSince:fD("08/16/2024"),visits45:w45(1.7),lastCheckin:null,history:[],notes:""},
   {id:15,name:"Anna Bruns",owner:"jojo",pkg:"Personal Training- 1X/Week",memberSince:fD("01/08/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
@@ -412,7 +492,6 @@ let M=[
   {id:25,name:"Brian Cleary",owner:"brett",pkg:"Hybrid Conditioning - 13X/Month and IPD-2X/Week",memberSince:fD("04/06/2025"),visits45:w45(1.5),lastCheckin:null,history:[],notes:""},
   {id:26,name:"Brieanna Smith",owner:"brett",pkg:"Group Class- Unlimited",memberSince:fD("10/09/2025"),visits45:w45(3.4),lastCheckin:null,history:[],notes:""},
   {id:27,name:"Brooke Sanders",owner:"noah",pkg:"Group Class- Unlimited",memberSince:fD("08/10/2024"),visits45:w45(1.6),lastCheckin:null,history:[],notes:""},
-  {id:28,name:"Caelin Quigley",owner:"brett",pkg:"Group Class- Unlimited",memberSince:fD("03/23/2025"),visits45:w45(1.8),lastCheckin:null,history:[],notes:""},
   {id:29,name:"Caitlin Mead",owner:"jon",pkg:"Lumos PLUS",memberSince:fD("07/05/2020"),visits45:w45(0.9),lastCheckin:null,history:[],notes:""},
   {id:30,name:"Candy Collins",owner:"noah",pkg:"Individual Program Design-2X/Week",memberSince:fD("01/09/2026"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:31,name:"Carol Bosselman",owner:"jojo",pkg:"Personal Training- 2X/Week and INFINITE",memberSince:fD("10/25/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
@@ -421,7 +500,6 @@ let M=[
   {id:34,name:"Cayla Yang",owner:"noah",pkg:"Group Class- Unlimited",memberSince:fD("04/13/2023"),visits45:w45(2.2),lastCheckin:null,history:[],notes:""},
   {id:35,name:"Chase Davidson",owner:"jon",pkg:"Group Class- Unlimited",memberSince:fD("07/11/2020"),visits45:w45(0.2),lastCheckin:null,history:[],notes:""},
   {id:36,name:"Chris Wilson",owner:"jon",pkg:"IPD-2X/Week and Group Class- 9X/Month",memberSince:fD("06/20/2023"),visits45:w45(0.8),lastCheckin:null,history:[],notes:""},
-  {id:37,name:"Christin Durham",owner:"noah",pkg:"Individual Program Design-2X/Week",memberSince:fD("01/09/2026"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:38,name:"Christopher Clifton",owner:"noah",pkg:"Group Class- 9X/Month",memberSince:fD("07/05/2020"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:39,name:"Cody Gummelt",owner:"jon",pkg:"Group Class- Unlimited",memberSince:fD("08/31/2025"),visits45:w45(5.5),lastCheckin:null,history:[],notes:""},
   {id:40,name:"Dalton Slattery",owner:"jon",pkg:"Lumos PLUS",memberSince:fD("05/22/2023"),visits45:null,lastCheckin:null,history:[],notes:""},
@@ -443,20 +521,11 @@ let M=[
   {id:56,name:"Hilary Neblett",owner:"jon",pkg:"24/7 Open Gym and Group Class- Unlimited and Nutrition",memberSince:fD("07/05/2020"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:57,name:"Holly Welder",owner:"brett",pkg:"Individual Program Design-3X/Week",memberSince:fD("05/07/2025"),visits45:w45(1.5),lastCheckin:null,history:[],notes:""},
   {id:58,name:"Holly Brissette",owner:"jon",pkg:"Individual Program Design-2X/Week and Nutrition",memberSince:fD("09/17/2023"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:59,name:"Isaac Holton",owner:"jon",pkg:"Group Class- Unlimited",memberSince:fD("11/01/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:60,name:"Jack Frid",owner:"jon",pkg:"Group Class- Unlimited",memberSince:fD("10/21/2023"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:61,name:"Jaclyn Nussman",owner:"n/a",pkg:"Kids- 1X/Week",memberSince:fD("11/24/2025"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:62,name:"Jaime Jones",owner:"brett",pkg:"Nutrition and Lumos 360",memberSince:fD("07/10/2023"),visits45:w45(2.8),lastCheckin:null,history:[],notes:""},
   {id:63,name:"Jake Droutsas",owner:"noah",pkg:"Group Class- 9X/Month",memberSince:fD("10/06/2022"),visits45:w45(1.2),lastCheckin:null,history:[],notes:""},
-  {id:64,name:"Jake Martin",owner:"brett",pkg:"Group Class- Unlimited",memberSince:fD("06/28/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:65,name:"James Dever",owner:"jojo",pkg:"Group Class- Unlimited",memberSince:fD("09/01/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:66,name:"Jamie Gonzalez",owner:"brett",pkg:"Group Class- Unlimited",memberSince:fD("08/21/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:67,name:"Janet Stelly",owner:"noah",pkg:"PT- 1X/Week and IPD-2X/Week and INFINITE",memberSince:fD("02/18/2023"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:68,name:"Jason Ranft",owner:"jon",pkg:"Group Class- Unlimited",memberSince:fD("10/08/2020"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:69,name:"Jasmin Skye",owner:"noah",pkg:"24/7 Open Gym Only",memberSince:fD("11/01/2024"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:70,name:"Jenna Yolles",owner:"jon",pkg:"Compete",memberSince:fD("07/05/2020"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:71,name:"Jennifer Prater",owner:"jon",pkg:"Group Class- Unlimited",memberSince:fD("07/05/2020"),visits45:null,lastCheckin:null,history:[],notes:""},
-  {id:72,name:"Jenny Lee",owner:"jon",pkg:"Lumos PLUS",memberSince:fD("07/05/2020"),visits45:null,lastCheckin:null,history:[],notes:""},
   {id:73,name:"Jeremy Brinker",owner:"noah",pkg:"Group Class- 9X/Month",memberSince:fD("01/07/2026"),visits45:w45(0.8),lastCheckin:null,history:[],notes:""},
   {id:74,name:"Jessi Roesch",owner:"noah",pkg:"Group Class- Punch Card",memberSince:fD("03/05/2021"),visits45:w45(0.3),lastCheckin:null,history:[],notes:""},
   {id:75,name:"Jimmy Wolf",owner:"jojo",pkg:"Foundations-1 Week",memberSince:fD("03/02/2026"),visits45:w45(1.5),lastCheckin:null,history:[],notes:""},
@@ -565,26 +634,90 @@ function rt(){
   tb.querySelectorAll('.cbt').forEach(b=>b.addEventListener('click',()=>doCheckin(+b.dataset.i,b)));
 }
 
-/* ── Calendar settings ── */
-const CAL_DEFAULTS={noah:'',jon:'',brett:'',jojo:'',fallback:'info@lumosfc.com',days:90};
+/* ── Google OAuth + Calendar API ── */
+const GCAL_CLIENT_ID='553387638088-f0a8gce9kb0pdtg61nlfkqud9lgj1lf0.apps.googleusercontent.com';
+const GCAL_SCOPE='https://www.googleapis.com/auth/calendar.events';
+let gTokenClient=null;
+let gAccessToken=null;
+let gTokenExpiry=0;
+
+const CAL_DEFAULTS={days:90};
 let calSettings=Object.assign({},CAL_DEFAULTS);
 (function loadCalSettings(){
-  try{const s=localStorage.getItem('lumosCalSettings');if(s)calSettings=Object.assign({},CAL_DEFAULTS,JSON.parse(s));}catch(e){}
+  try{
+    const s=localStorage.getItem('lumosCalSettings2');
+    if(s) calSettings=Object.assign({},CAL_DEFAULTS,JSON.parse(s));
+    const t=localStorage.getItem('lumosGCalToken');
+    if(t){const p=JSON.parse(t);if(p.expiry>Date.now()){gAccessToken=p.token;gTokenExpiry=p.expiry;}}
+  }catch(e){}
 })();
 
 function saveCalSettings(){
-  calSettings.noah=document.getElementById('calNoah').value.trim();
-  calSettings.jon=document.getElementById('calJon').value.trim();
-  calSettings.brett=document.getElementById('calBrett').value.trim();
-  calSettings.jojo=document.getElementById('calJojo').value.trim();
-  calSettings.fallback=document.getElementById('calFallback').value.trim()||'info@lumosfc.com';
   calSettings.days=parseInt(document.getElementById('calDays').value)||90;
-  try{localStorage.setItem('lumosCalSettings',JSON.stringify(calSettings));}catch(e){}
+  try{localStorage.setItem('lumosCalSettings2',JSON.stringify(calSettings));}catch(e){}
 }
 
-function getCalId(ownerKey){
-  const map={noah:calSettings.noah,jon:calSettings.jon,brett:calSettings.brett,jojo:calSettings.jojo};
-  return(map[ownerKey]||'').trim()||calSettings.fallback||'info@lumosfc.com';
+/* Load Google Identity Services script */
+function loadGIS(){
+  return new Promise(resolve=>{
+    if(window.google&&window.google.accounts){resolve();return;}
+    const s=document.createElement('script');
+    s.src='https://accounts.google.com/gsi/client';
+    s.onload=resolve;
+    document.head.appendChild(s);
+  });
+}
+
+async function initGoogleAuth(){
+  await loadGIS();
+  gTokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:GCAL_CLIENT_ID,
+    scope:GCAL_SCOPE,
+    callback:(resp)=>{
+      if(resp.error){
+        showToast('Google sign-in failed: '+resp.error,'error');
+        return;
+      }
+      gAccessToken=resp.access_token;
+      gTokenExpiry=Date.now()+(resp.expires_in-60)*1000;
+      try{localStorage.setItem('lumosGCalToken',JSON.stringify({token:gAccessToken,expiry:gTokenExpiry}));}catch(e){}
+      updateGCalStatus(true);
+      showToast('✓ Signed in to Google Calendar','success',3000);
+    }
+  });
+}
+
+function gcalSignIn(){
+  if(!gTokenClient){initGoogleAuth().then(()=>gTokenClient.requestAccessToken({prompt:'consent'}));return;}
+  gTokenClient.requestAccessToken({prompt:''});
+}
+
+function gcalSignOut(){
+  if(gAccessToken) google.accounts.oauth2.revoke(gAccessToken);
+  gAccessToken=null;gTokenExpiry=0;
+  try{localStorage.removeItem('lumosGCalToken');}catch(e){}
+  updateGCalStatus(false);
+  showToast('Signed out of Google Calendar','success',2500);
+}
+
+function isGCalAuthed(){return gAccessToken&&Date.now()<gTokenExpiry;}
+
+function updateGCalStatus(authed){
+  const bar=document.getElementById('gcalStatusBar');
+  const txt=document.getElementById('gcalStatusText');
+  const signInBtn=document.getElementById('gcalSignIn');
+  const signOutBtn=document.getElementById('gcalSignOut');
+  if(authed){
+    bar.className='gcal-status connected';
+    txt.textContent='Signed in — calendar events will be created on check-in';
+    signInBtn.style.display='none';
+    signOutBtn.style.display='block';
+  } else {
+    bar.className='gcal-status disconnected';
+    txt.textContent='Not signed in — click below to connect';
+    signInBtn.style.display='flex';
+    signOutBtn.style.display='none';
+  }
 }
 
 /* ── Toast notifications ── */
@@ -598,73 +731,40 @@ function showToast(msg,type='success',dur=4500){
   setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),350)},dur);
 }
 
-/* ── Google Calendar event creation ── */
-async function createFollowUpEvent(member, daysOut){
-  // Build date 90 days from today
+/* ── Create Google Calendar event directly via REST API ── */
+async function createFollowUpEvent(member,daysOut){
+  if(!isGCalAuthed()){
+    showToast('⚠ Check-in logged — sign in to Google Calendar to create follow-up events','error',6000);
+    return;
+  }
   const eventDate=new Date(T);
   eventDate.setDate(eventDate.getDate()+daysOut);
   const dateStr=iso(eventDate);
-
-  const calId=getCalId(oKey(member.owner));
   const title=`Check in with ${member.name}`;
-
+  const body={
+    summary:title,
+    description:`90-day member check-in follow-up — Lumos FC\nMember: ${member.name}\nCoach: ${oLabel(member.owner)}\nPackage: ${member.pkg||'—'}`,
+    start:{date:dateStr},
+    end:{date:dateStr}
+  };
   try{
-    // Use the Google Calendar MCP via the Anthropic API with MCP servers
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    const resp=await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:1000,
-        mcp_servers:[{type:'url',url:'https://gcal.mcp.claude.com/mcp',name:'gcal'}],
-        messages:[{
-          role:'user',
-          content:`Create an all-day Google Calendar event on calendar "${calId}" for the date ${dateStr}. Title: "${title}". Description: "90-day member check-in follow-up from Lumos FC Member Tracker. Member: ${member.name}. Coach: ${oLabel(member.owner)}. Package: ${member.pkg||'—'}." Respond only with a short JSON: {"success": true, "eventId": "..."} or {"success": false, "error": "..."}`
-        }]
-      })
+      headers:{'Authorization':'Bearer '+gAccessToken,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
     });
-
     if(!resp.ok){
-      const err=await resp.text();
-      throw new Error(`API error ${resp.status}: ${err.slice(0,120)}`);
+      const err=await resp.json();
+      throw new Error(err.error?.message||resp.status);
     }
-
-    const data=await resp.json();
-
-    // Parse the response — look for success signal in any text block
-    const textBlocks=data.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');
-    const toolResults=data.content.filter(b=>b.type==='mcp_tool_result');
-
-    // Check tool results for success
-    let calSuccess=false;
-    if(toolResults.length>0){
-      // Any tool result means the MCP call was attempted; assume success if no error key
-      const resultText=toolResults.map(r=>r.content?.[0]?.text||'').join('');
-      calSuccess=!resultText.toLowerCase().includes('"error"')||resultText.toLowerCase().includes('"id"');
-      if(!calSuccess&&resultText){
-        const parsed=JSON.parse(resultText);
-        if(parsed&&parsed.error) throw new Error(parsed.error);
-      }
-      calSuccess=true; // tool was called = event was created
-    } else if(textBlocks.includes('"success": true')||textBlocks.includes('"success":true')){
-      calSuccess=true;
-    } else if(textBlocks.toLowerCase().includes('created')||textBlocks.toLowerCase().includes('event')){
-      calSuccess=true;
-    }
-
-    if(calSuccess){
-      showToast(`📅 Follow-up event created for ${member.name} on ${eventDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} → ${calId}`,'success');
-    } else {
-      throw new Error('Calendar event creation returned unexpected response');
-    }
-
+    showToast(`📅 Follow-up set for ${member.name} on ${eventDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`,'success');
   }catch(err){
-    console.error('GCal event creation failed:',err);
-    showToast(`⚠ Check-in logged, but calendar event failed: ${err.message.slice(0,80)}`,'error',6000);
+    console.error('GCal error:',err);
+    showToast(`⚠ Check-in logged, calendar event failed: ${err.message.slice(0,80)}`,'error',6000);
   }
 }
 
-async function doCheckin(id, btn){
+async function doCheckin(id,btn){
   const m=M.find(x=>x.id===id);if(!m)return;
   const prev=iso(m.lastCheckin);
   if(prev) m.history=[...(m.history||[]),prev];
@@ -672,11 +772,7 @@ async function doCheckin(id, btn){
   btn.textContent='✓ Done!';
   btn.classList.add('flash');
   btn.disabled=true;
-
-  // Fire GCal event creation in parallel (non-blocking)
-  const days=calSettings.days||90;
-  createFollowUpEvent(m, days);
-
+  createFollowUpEvent(m,calSettings.days||90);
   setTimeout(()=>render(),600);
 }
 
@@ -698,7 +794,7 @@ document.querySelectorAll('.filter-btn').forEach(b=>{
 document.getElementById('srch').addEventListener('input',e=>{srch=e.target.value;rt()});
 document.getElementById('owFlt').addEventListener('change',e=>{fOwn=e.target.value;rt()});
 
-function oAdd(){eid=null;document.getElementById('mtitle').textContent='Add member';['fn','fp','fs','fv','fc'].forEach(i=>document.getElementById(i).value='');document.getElementById('fo').value='noah';document.getElementById('fnotes').value='';document.getElementById('chw').innerHTML='';document.getElementById('mci').style.display='none';document.getElementById('modal').classList.add('open')}
+function oAdd(){eid=null;document.getElementById('mtitle').textContent='Add member';['fn','fp','fs','fv','fc'].forEach(i=>document.getElementById(i).value='');document.getElementById('fo').value='noah';document.getElementById('fnotes').value='';document.getElementById('chw').innerHTML='';document.getElementById('mci').style.display='none';document.getElementById('mdel').style.display='none';document.getElementById('modal').classList.add('open')}
 function oEdit(id){eid=id;const m=M.find(x=>x.id===id);
   document.getElementById('mtitle').textContent=m.name;
   document.getElementById('fn').value=m.name;
@@ -711,11 +807,18 @@ function oEdit(id){eid=id;const m=M.find(x=>x.id===id);
   const h=m.history||[];
   document.getElementById('chw').innerHTML=h.length?`<div class="ch"><div class="cht">Check-in history</div>${h.map(d=>`<div class="chi">${fmt(fISO(d))}</div>`).join('')}</div>`:'';
   document.getElementById('mci').style.display='inline-block';
+  document.getElementById('mdel').style.display='inline-block';
   document.getElementById('modal').classList.add('open');
 }
 const cm=()=>document.getElementById('modal').classList.remove('open');
 document.getElementById('addBtn').addEventListener('click',oAdd);
 document.getElementById('mcancel').addEventListener('click',cm);
+document.getElementById('mdel').addEventListener('click',()=>{
+  const m=M.find(x=>x.id===eid);if(!m)return;
+  if(!confirm(`Remove ${m.name} from the tracker? This cannot be undone.`))return;
+  M=M.filter(x=>x.id!==eid);
+  cm();render();
+});
 document.getElementById('mclose').addEventListener('click',cm);
 document.getElementById('modal').addEventListener('click',e=>{if(e.target===e.currentTarget)cm()});
 
@@ -741,38 +844,307 @@ document.getElementById('mci').addEventListener('click',()=>{
   render();
 });
 
-document.getElementById('csvIn').addEventListener('change',e=>{
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    const lines=ev.target.result.split('\n').filter(l=>l.trim());
-    const hdr=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/^"|"$/g,'').replace(/\?/g,''));
-    const ix=k=>hdr.findIndex(h=>h.includes(k));
-    const ni=ix('name'),si=ix('since'),vi=ix('visit'),ci=ix('check'),pi=ix('package'),oi=ix('owner');
-    lines.slice(1).forEach(line=>{
-      const cols=line.split(',').map(c=>c.trim().replace(/^"|"$/g,''));
-      const name=ni>=0?cols[ni]:'';if(!name)return;
-      M.push({id:nid++,name,owner:oi>=0?cols[oi]:'',pkg:pi>=0?cols[pi]:'',memberSince:si>=0?(fD(cols[si])||fISO(cols[si])):null,visits45:vi>=0?(cols[vi]===''?null:parseInt(cols[vi])||null):null,lastCheckin:ci>=0?fISO(cols[ci]):null,history:[],notes:''});
-    });render();
-  };r.readAsText(f);e.target.value='';
-});
-
 document.getElementById('expBtn').addEventListener('click',()=>{
   const rows=M.map(m=>{const{score:sc,tier}=score(m);return[`"${m.name}"`,oLabel(m.owner),iso(m.memberSince),m.visits45!=null?m.visits45:'',iso(m.lastCheckin),sc,tier,`"${m.pkg||''}"`,`"${(m.notes||'').replace(/"/g,"'")}"`].join(',')});
-  const csv='Name,Coach,Member Since,Visits (45d),Last Check-in,Risk Score,Risk Tier,Package,Notes\n'+rows.join('\n');
+  const csv='Name,Coach,Member Since,Visits (Last 30 Days),Last Check-in,Risk Score,Risk Tier,Package,Notes\n'+rows.join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='lumos_checkins_'+iso(T)+'.csv';a.click();
+});
+
+/* ── Import system ── */
+let impData={csv1:null,csv2:null};
+let impStep=1;
+
+function normName(s){return(s||'').trim().toLowerCase().replace(/\s+/g,' ');}
+
+function parseCSV(text){
+  const lines=text.split('\n').filter(l=>l.trim());
+  if(!lines.length)return[];
+  // Handle quoted fields with commas inside
+  function splitLine(line){
+    const cols=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){inQ=!inQ;}
+      else if(c===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    cols.push(cur.trim());
+    return cols.map(c=>c.replace(/^"|"$/g,'').trim());
+  }
+  const hdr=splitLine(lines[0]).map(h=>h.toLowerCase().replace(/\?/g,''));
+  return lines.slice(1).filter(l=>l.trim()).map(l=>{
+    const cols=splitLine(l);
+    const obj={};hdr.forEach((h,i)=>obj[h]=cols[i]||'');
+    return obj;
+  });
+}
+
+function colFind(row,keys){
+  const k=Object.keys(row).find(h=>keys.some(k=>h.toLowerCase().includes(k.toLowerCase())));
+  return k?row[k]:'';
+}
+
+function setImpStep(n){
+  impStep=n;
+  [1,2,3].forEach(i=>{
+    document.getElementById('impStep'+i).classList.toggle('active',i===n);
+    const dot=document.getElementById('sdot'+i);
+    dot.classList.toggle('active',i===n);
+    dot.classList.toggle('done',i<n);
+  });
+  [1,2].forEach(i=>{
+    document.getElementById('sline'+i).classList.toggle('done',i<n);
+  });
+}
+
+function openImport(){
+  impData={csv1:null,csv2:null};
+  setImpStep(1);
+  ['drop1','drop2'].forEach(id=>{document.getElementById(id).classList.remove('loaded','dragover');});
+  document.getElementById('drop1Label').textContent='Drop Athlete-List here or click to browse';
+  document.getElementById('drop2Label').textContent='Drop Generated here or click to browse';
+  document.getElementById('imp1Next').disabled=true;
+  document.getElementById('imp2Next').disabled=true;
+  document.getElementById('impReview').innerHTML='';
+  document.getElementById('importModal').classList.add('open');
+}
+function closeImport(){document.getElementById('importModal').classList.remove('open');}
+
+document.getElementById('importBtn').addEventListener('click',openImport);
+document.getElementById('importClose').addEventListener('click',closeImport);
+document.getElementById('importModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeImport();});
+
+function setupDrop(dropId,inputId,labelId,key,nextBtnId){
+  const drop=document.getElementById(dropId);
+  const input=document.getElementById(inputId);
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('dragover');});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('dragover'));
+  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)loadCSVFile(f,key,labelId,dropId,nextBtnId);});
+  input.addEventListener('change',e=>{const f=e.target.files[0];if(f)loadCSVFile(f,key,labelId,dropId,nextBtnId);e.target.value='';});
+}
+
+function loadCSVFile(file,key,labelId,dropId,nextBtnId){
+  const r=new FileReader();
+  r.onload=ev=>{
+    const rows=parseCSV(ev.target.result);
+    impData[key]=rows;
+    document.getElementById(labelId).textContent='✓ '+file.name+' ('+rows.length+' rows)';
+    document.getElementById(dropId).classList.add('loaded');
+    document.getElementById(nextBtnId).disabled=false;
+  };
+  r.readAsText(file);
+}
+
+setupDrop('drop1','csv1In','drop1Label','csv1','imp1Next');
+setupDrop('drop2','csv2In','drop2Label','csv2','imp2Next');
+
+document.getElementById('imp1Next').addEventListener('click',()=>setImpStep(2));
+document.getElementById('imp2Back').addEventListener('click',()=>setImpStep(1));
+document.getElementById('imp2Next').addEventListener('click',()=>{buildReview();setImpStep(3);});
+document.getElementById('imp3Back').addEventListener('click',()=>setImpStep(2));
+
+/* YTD store: {normName: ytdCount} */
+function getYTDStore(){try{const s=localStorage.getItem('lumosYTD');return s?JSON.parse(s):{};}catch(e){return{};}}
+function saveYTDStore(store){try{localStorage.setItem('lumosYTD',JSON.stringify(store));}catch(e){}}
+
+function ytdToVisits45(ytd){
+  // Normalize YTD visits to a 45-day window based on days elapsed since Jan 1
+  const jan1=new Date(T.getFullYear(),0,1);
+  const daysElapsed=Math.max(1,Math.round((T-jan1)/864e5));
+  return Math.round((ytd/daysElapsed)*45);
+}
+
+let impPreview=null; // store computed preview for commit
+
+function buildReview(){
+  const rows1=impData.csv1||[];
+  const rows2=impData.csv2||[];
+  const ytdStore=getYTDStore();
+
+  // Build lookup of current members by normalized name
+  const byName={};
+  M.forEach(m=>byName[normName(m.name)]=m);
+
+  // Build set of names in CSV1
+  const csv1Names=new Set();
+  const newMembers=[];
+  const updatedSince=[];
+
+  rows1.forEach(row=>{
+    const name=colFind(row,['full name','name','member name']);
+    if(!name)return;
+    const nn=normName(name);
+    csv1Names.add(nn);
+    const since=fD(colFind(row,['since','start','join','member since']))||fISO(colFind(row,['since','start','join','member since']));
+    const pkg=colFind(row,['current package','package','membership']);
+    const existing=byName[nn];
+    if(!existing){
+      newMembers.push({name,memberSince:since,pkg});
+    } else {
+      // Check if memberSince changed
+      const oldISO=iso(existing.memberSince);
+      const newISO=iso(since);
+      if(since&&newISO&&oldISO!==newISO){
+        updatedSince.push({name:existing.name,old:oldISO,new:newISO,member:existing});
+      }
+    }
+  });
+
+  // Possible cancellations: in tracker but not in CSV1 (exclude unassigned/new members with no since date)
+  const possibleCancelled=M.filter(m=>!csv1Names.has(normName(m.name)));
+
+  // Attendance updates from CSV2 — only update members already in tracker
+  const visitsUpdated=[];
+  const visitsMismatched=[];
+
+  rows2.forEach(row=>{
+    const name=colFind(row,['full name','name','member name']);
+    if(!name)return;
+    const nn=normName(name);
+    const existing=byName[nn];
+    if(!existing)return; // not in tracker — silently ignore
+
+    const pkg=colFind(row,['current package','package','membership']);
+    const attendanceRaw=colFind(row,['class attendance','attendance','classes']);
+    const reservationsRaw=colFind(row,['app reservation','appointment reservation']);
+    const classAtt=parseInt(attendanceRaw)||0;
+    const appRes=parseInt(reservationsRaw)||0;
+    const hasPT=pkg.toLowerCase().includes('personal training');
+    const hasGroup=/(group class|hybrid conditioning|compete|lumos plus|infinite|foundations|unlimited)/i.test(pkg);
+
+    // Determine attendance figure based on package type
+    let ytd;
+    if(hasPT&&hasGroup) ytd=classAtt+appRes;
+    else if(hasPT&&!hasGroup) ytd=appRes;
+    else ytd=classAtt;
+
+    // If 0 visits and no package, skip
+    if(ytd===0&&!pkg.trim())return;
+
+    const prevYTD=ytdStore[nn]??null;
+    const visits45=ytdToVisits45(ytd);
+    const method=hasPT&&hasGroup?'class+PT':hasPT?'PT reservations':'class attendance';
+
+    visitsUpdated.push({
+      name:existing.name,
+      member:existing,
+      ytd,
+      prevYTD,
+      visits45,
+      method,
+      pkg:pkg.trim()||existing.pkg
+    });
+  });
+
+  // Name mismatches: in CSV2 but not in tracker (already silently ignored above, but flag ones that are close)
+  // We flag CSV2 names that don't match any tracker member AND have a package (active members we might be missing)
+  rows2.forEach(row=>{
+    const name=colFind(row,['full name','name','member name','full name']);
+    if(!name)return;
+    const nn=normName(name);
+    if(!byName[nn]){
+      const pkg=colFind(row,['current package','package','membership']);
+      const att=parseInt(colFind(row,['class attendance','attendance','classes']))||0;
+      if(pkg.trim()||att>0){
+        visitsMismatched.push({name,pkg,att});
+      }
+    }
+  });
+
+  impPreview={newMembers,updatedSince,possibleCancelled,visitsUpdated,visitsMismatched};
+
+  // Render review
+  let html='';
+
+  // New members
+  html+=`<div class="imp-review-section"><div class="imp-review-title blue">New members (${newMembers.length})</div><div class="imp-scroll">`;
+  if(newMembers.length){
+    newMembers.forEach(m=>html+=`<div class="imp-item"><span class="imp-item-name">${m.name}</span><span class="imp-badge new">New</span><span class="imp-item-detail">Since ${m.memberSince?fmt(m.memberSince):'unknown'} · ${m.pkg||'No package'} · Unassigned</span></div>`);
+  } else html+=`<div class="imp-empty">None</div>`;
+  html+='</div></div>';
+
+  // Visits updated
+  html+=`<div class="imp-review-section"><div class="imp-review-title green">Visits updated (${visitsUpdated.length})</div><div class="imp-scroll">`;
+  if(visitsUpdated.length){
+    visitsUpdated.forEach(v=>{
+      const prevLabel=v.prevYTD!=null?`YTD was ${v.prevYTD}→${v.ytd}`:`YTD ${v.ytd} (first import)`;
+      html+=`<div class="imp-item"><span class="imp-item-name">${v.name}</span><span class="imp-badge updated">Updated</span><span class="imp-item-detail">${prevLabel} · ~${v.visits45} visits/45d · ${v.method}</span></div>`;
+    });
+  } else html+=`<div class="imp-empty">None</div>`;
+  html+='</div></div>';
+
+  // Member since changes
+  if(updatedSince.length){
+    html+=`<div class="imp-review-section"><div class="imp-review-title orange">Member Since updated (${updatedSince.length})</div><div class="imp-scroll">`;
+    updatedSince.forEach(u=>html+=`<div class="imp-item"><span class="imp-item-name">${u.name}</span><span class="imp-badge flagged">Changed</span><span class="imp-item-detail">${u.old||'unknown'} → ${u.new}</span></div>`);
+    html+='</div></div>';
+  }
+
+  // Possible cancellations — checkboxes to confirm deletion
+  html+=`<div class="imp-review-section"><div class="imp-review-title red">Possible cancellations — not in Athlete-List (${possibleCancelled.length})</div><div class="imp-scroll">`;
+  if(possibleCancelled.length){
+    html+=`<p style="font-size:11px;color:var(--text3);margin-bottom:8px">These members weren't in the roster CSV. Check any you want to <strong>remove</strong> from the tracker.</p>`;
+    possibleCancelled.forEach(m=>{
+      html+=`<div class="imp-confirm-row"><input type="checkbox" id="del_${m.id}" data-id="${m.id}"><label for="del_${m.id}">${m.name}</label><span class="imp-item-detail">${m.pkg||'—'} · ${m.owner||'unassigned'}</span></div>`;
+    });
+  } else html+=`<div class="imp-empty">None — all current members found in Athlete-List ✓</div>`;
+  html+='</div></div>';
+
+  // Mismatches to flag
+  if(visitsMismatched.length){
+    html+=`<div class="imp-review-section"><div class="imp-review-title orange">Names in attendance CSV not found in tracker (${visitsMismatched.length})</div><div class="imp-scroll">`;
+    html+=`<p style="font-size:11px;color:var(--text3);margin-bottom:8px">These have active packages but didn't match any tracker record. Check for typos and add manually if needed.</p>`;
+    visitsMismatched.forEach(v=>html+=`<div class="imp-item"><span class="imp-item-name">${v.name}</span><span class="imp-badge flagged">No match</span><span class="imp-item-detail">${v.pkg||'—'} · ${v.att} visits</span></div>`);
+    html+='</div></div>';
+  }
+
+  document.getElementById('impReview').innerHTML=html;
+}
+
+document.getElementById('imp3Commit').addEventListener('click',()=>{
+  if(!impPreview)return;
+  const {newMembers,updatedSince,possibleCancelled,visitsUpdated}=impPreview;
+  const ytdStore=getYTDStore();
+  const byName={};M.forEach(m=>byName[normName(m.name)]=m);
+
+  // Add new members
+  newMembers.forEach(m=>{
+    M.push({id:nid++,name:m.name,owner:'n/a',pkg:m.pkg||'',memberSince:m.memberSince,visits45:null,lastCheckin:null,history:[],notes:''});
+  });
+
+  // Update member since
+  updatedSince.forEach(u=>{
+    u.member.memberSince=fISO(u.new);
+  });
+
+  // Apply visits + update YTD store
+  visitsUpdated.forEach(v=>{
+    v.member.visits45=v.visits45;
+    if(v.pkg&&v.pkg!==v.member.pkg) v.member.pkg=v.pkg;
+    ytdStore[normName(v.member.name)]=v.ytd;
+  });
+  saveYTDStore(ytdStore);
+
+  // Delete checked cancellations
+  const toDelete=new Set();
+  possibleCancelled.forEach(m=>{
+    const cb=document.getElementById('del_'+m.id);
+    if(cb&&cb.checked) toDelete.add(m.id);
+  });
+  if(toDelete.size) M=M.filter(m=>!toDelete.has(m.id));
+
+  closeImport();
+  render();
+
+  const summary=`Import complete — ${newMembers.length} added, ${visitsUpdated.length} visits updated, ${toDelete.size} removed`;
+  showToast(summary,'success',6000);
 });
 
 /* ── Settings panel wiring ── */
 function openSettings(){
-  document.getElementById('calNoah').value=calSettings.noah||'';
-  document.getElementById('calJon').value=calSettings.jon||'';
-  document.getElementById('calBrett').value=calSettings.brett||'';
-  document.getElementById('calJojo').value=calSettings.jojo||'';
-  document.getElementById('calFallback').value=calSettings.fallback||'info@lumosfc.com';
   document.getElementById('calDays').value=calSettings.days||90;
+  updateGCalStatus(isGCalAuthed());
   document.getElementById('settingsPanel').classList.add('open');
-  checkGCalStatus();
 }
 function closeSettings(){document.getElementById('settingsPanel').classList.remove('open');}
 
@@ -780,39 +1152,14 @@ document.getElementById('settingsBtn').addEventListener('click',openSettings);
 document.getElementById('settingsClose').addEventListener('click',closeSettings);
 document.getElementById('settingsCancel').addEventListener('click',closeSettings);
 document.getElementById('settingsPanel').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettings();});
-document.getElementById('settingsSave').addEventListener('click',()=>{saveCalSettings();closeSettings();showToast('Calendar settings saved','success',2500);});
+document.getElementById('settingsSave').addEventListener('click',()=>{saveCalSettings();closeSettings();showToast('Settings saved','success',2500);});
+document.getElementById('gcalSignIn').addEventListener('click',()=>gcalSignIn());
+document.getElementById('gcalSignOut').addEventListener('click',()=>gcalSignOut());
 
-async function checkGCalStatus(){
-  const bar=document.getElementById('gcalStatusBar');
-  const statusTxt=document.getElementById('gcalStatusText');
-  bar.className='gcal-status pending';
-  statusTxt.textContent='Checking Google Calendar connection…';
-  try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:200,
-        mcp_servers:[{type:'url',url:'https://gcal.mcp.claude.com/mcp',name:'gcal'}],
-        messages:[{role:'user',content:'List 1 calendar from Google Calendar. Respond only with JSON {"connected":true} or {"connected":false}.'}]
-      })
-    });
-    if(!resp.ok)throw new Error('API error '+resp.status);
-    const data=await resp.json();
-    const hasToolActivity=data.content.some(b=>b.type==='mcp_tool_use'||b.type==='mcp_tool_result');
-    const respTxt=data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
-    if(hasToolActivity||respTxt.includes('"connected":true')||respTxt.toLowerCase().includes('calendar')){
-      bar.className='gcal-status connected';
-      statusTxt.textContent='Google Calendar connected — events will be created automatically on check-in';
-    } else {
-      throw new Error('No calendar activity in response');
-    }
-  }catch(e){
-    bar.className='gcal-status disconnected';
-    statusTxt.textContent='Google Calendar not connected — enable it in Claude.ai Settings → Integrations';
-  }
-}
+/* Init Google auth on page load (silent — no prompt) */
+initGoogleAuth().then(()=>{
+  if(isGCalAuthed()) updateGCalStatus(true);
+});
 
 render();
 </script>
