@@ -610,14 +610,24 @@ function mToSheet(m){
 }
 
 function mFromSheet(row){
+  // Robust date parser — handles ISO (2025-07-04), US (07/04/2025), and Date objects
+  function parseDate(v){
+    if(!v||v==='')return null;
+    if(v instanceof Date)return isNaN(v)?null:v;
+    const s=String(v).trim();
+    // ISO format: 2025-07-04
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)){const d=new Date(s+'T00:00:00');return isNaN(d)?null:d;}
+    // US format: 07/04/2025
+    return fD(s)||fISO(s);
+  }
   return{
     id:parseInt(row.id)||row.id,
     name:row.name||'',
     owner:row.owner||'',
     pkg:row.pkg||'',
-    memberSince:fISO(row.memberSince)||fD(row.memberSince),
+    memberSince:parseDate(row.memberSince),
     visits45:row.visits45!==''&&row.visits45!=null?parseInt(row.visits45):null,
-    lastCheckin:fISO(row.lastCheckin),
+    lastCheckin:parseDate(row.lastCheckin),
     history:Array.isArray(row.history)?row.history:(()=>{try{return JSON.parse(row.history||'[]')}catch(e){return[]}})(),
     notes:row.notes||'',
     ytd:row.ytd!==''&&row.ytd!=null?parseInt(row.ytd):null
